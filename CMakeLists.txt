@@ -1,16 +1,20 @@
 cmake_minimum_required(VERSION 3.16)
 
 # Change project name, based on EPICS version
-if(EPICS_VERSION STREQUAL "3")
+OPTION(EPICS_VERSION "Select major version of EPICS to build (3 or 7)")
+if((EPICS_VERSION STREQUAL "3") OR (NOT EPICS_VERSION))
   project(ChimeraTK-EPICS3)
   set(EPICS_VER "epics3")
+  set(EPICS_FULLVER "3.15.9")
 elseif(EPICS_VERSION STREQUAL "7")
   project(ChimeraTK-EPICS7)
   set(EPICS_VER "epics7")
+  set(EPICS_FULLVER "7.0.8")
 else()
-  message(FATAL_ERROR "EPICS version must be defined! Please pass to cmake command line one of the following:\n"
-                      "-DEPICS_VERSION=3 to build against EPICS ver. 3.15\n"
-                      "-DEPICS_VERSION=7 to build against EPICS ver. 7.02")
+  message(FATAL_ERROR "Unknown EPICS version specified: ${EPICS_VERSION}!\n"
+                      "Please pass to cmake command line one of the following:\n"
+                      "-DEPICS_VERSION=3 to build against EPICS ver. 3.15.9\n"
+                      "-DEPICS_VERSION=7 to build against EPICS ver. 7.0.8.1")
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
@@ -31,24 +35,24 @@ set(PROJECT_LIB_DIR ${PROJECT_BINARY_DIR}/lib)
 
 # generate a list of all epics-base libraries, depending on epics version
 set(epics3_BASE_LIBS ${PROJECT_LIB_DIR}/libdbRecStd.a
-                     ${PROJECT_LIB_DIR}/libdbCore.a
-                     ${PROJECT_LIB_DIR}/libca.a
-                     ${PROJECT_LIB_DIR}/libcas.a
-                     ${PROJECT_LIB_DIR}/libCom.a
-                     ${PROJECT_LIB_DIR}/libgdd.a)
+  ${PROJECT_LIB_DIR}/libdbCore.a
+  ${PROJECT_LIB_DIR}/libca.a
+  ${PROJECT_LIB_DIR}/libcas.a
+  ${PROJECT_LIB_DIR}/libCom.a
+  ${PROJECT_LIB_DIR}/libgdd.a)
 
 set(epics7_BASE_LIBS ${PROJECT_LIB_DIR}/libdbRecStd.a
-                     ${PROJECT_LIB_DIR}/libdbCore.a
-                     ${PROJECT_LIB_DIR}/libca.a
-                     ${PROJECT_LIB_DIR}/libCom.a
-                     ${PROJECT_LIB_DIR}/libnt.a
-                     ${PROJECT_LIB_DIR}/libpvAccess.a
-                     ${PROJECT_LIB_DIR}/libpvAccessCA.a
-                     ${PROJECT_LIB_DIR}/libpvAccessIOC.a
-                     ${PROJECT_LIB_DIR}/libpvaClient.a
-                     ${PROJECT_LIB_DIR}/libpvData.a
-                     ${PROJECT_LIB_DIR}/libpvDatabase.a
-                     ${PROJECT_LIB_DIR}/libqsrv.a)
+  ${PROJECT_LIB_DIR}/libdbCore.a
+  ${PROJECT_LIB_DIR}/libca.a
+  ${PROJECT_LIB_DIR}/libCom.a
+  ${PROJECT_LIB_DIR}/libnt.a
+  ${PROJECT_LIB_DIR}/libpvAccess.a
+  ${PROJECT_LIB_DIR}/libpvAccessCA.a
+  ${PROJECT_LIB_DIR}/libpvAccessIOC.a
+  ${PROJECT_LIB_DIR}/libpvaClient.a
+  ${PROJECT_LIB_DIR}/libpvData.a
+  ${PROJECT_LIB_DIR}/libpvDatabase.a
+  ${PROJECT_LIB_DIR}/libqsrv.a)
 
 
 # build EPICS base
@@ -68,8 +72,13 @@ add_custom_target(${PROJECT_NAME}-calc ALL COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/b
                                            DEPENDS ${PROJECT_NAME}-base
                                            BYPRODUCTS ${PROJECT_LIB_DIR}/libcalc.a)
 
+# create combined shared library containing all EPICS libraries
+add_library(${PROJECT_NAME} SHARED src/empty.cc)
+target_link_libraries(${PROJECT_NAME} PUBLIC
+  "-Wl,--whole-archive" ${${EPICS_VER}_BASE_LIBS} ${PROJECT_LIB_DIR}/libautosave.a ${PROJECT_LIB_DIR}/libcalc.a)
+set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "-Wl,--allow-multiple-definition -Wl,--no-allow-shlib-undefined")
 
-# Install the library and a template directory structure for IOCs
+# Install the combined library and export as cmake target
 include(GNUInstallDirs)
 install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}Targets LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 

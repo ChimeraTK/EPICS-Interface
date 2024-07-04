@@ -45,4 +45,3 @@ EPICS_ARCH=`grep "^ARCH=" "${EPICS_BASE}/lib/pkgconfig/epics-base.pc" | sed -e '
 mkdir -p "${PROJECT_BINARY_DIR}/lib"
 cp "${PROJECT_BINARY_DIR}/epics-base/lib/${EPICS_ARCH}/"*.a "${PROJECT_BINARY_DIR}/lib"
 chmod u+w -R "${PROJECT_BINARY_DIR}/lib"
-
