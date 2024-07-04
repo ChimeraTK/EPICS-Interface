@@ -1,0 +1,48 @@
+#!/bin/bash -e
+
+EPICS_SOURCE="$1"
+PROJECT_BINARY_DIR="`pwd`"
+EPICS_BASE="${PROJECT_BINARY_DIR}/epics-base"
+mkdir -p "${EPICS_BASE}"
+
+# Function links file, generating subfolder if necessary
+makeLink() {
+   mkdir -p `dirname "${EPICS_BASE}/$1"`
+   ln -sfn "${EPICS_SOURCE}/$1" "${EPICS_BASE}/$1"
+}
+
+export -f makeLink
+export PROJECT_BINARY_DIR
+export EPICS_SOURCE
+export EPICS_BASE
+
+# "find" generates a list of paths to any regular file below the source directory
+# and calls the makeLink function for every entry.
+# NOTE:Semikolon needs to be escaped
+if [ ! -f "${PROJECT_BINARY_DIR}/epicsSourceLinked" ]; then
+  cd "${EPICS_SOURCE}/"
+  echo "Symlinking epics base source..."
+  find -type f -exec bash -c "makeLink {}" \;
+  touch "${PROJECT_BINARY_DIR}/epicsSourceLinked"
+fi
+
+# Replacing the Symlink of the template base and ext Makefiles for EPICS7 with modified copies
+if [[ ${EPICS_SOURCE} =~ .*/epics7-base ]]; then
+  rm "${PROJECT_BINARY_DIR}/epics-base/src/template/base/Makefile"
+  sed -e '/top\/\.gitignore/d' "${EPICS_SOURCE}/src/template/base/Makefile" > "${EPICS_BASE}/src/template/base/Makefile"
+  rm "${PROJECT_BINARY_DIR}/epics-base/src/template/ext/Makefile"
+  sed -e '/top\/\.gitignore/d' "${EPICS_SOURCE}/src/template/ext/Makefile" > "${EPICS_BASE}/src/template/ext/Makefile"
+fi
+
+echo "Build epics-base libraries..."
+cd "${EPICS_BASE}"
+make -j5 USR_CFLAGS=-w USR_CXXFLAGS=-w
+
+# Extract architecture, EPICS base was build against
+EPICS_ARCH=`grep "^ARCH=" "${EPICS_BASE}/lib/pkgconfig/epics-base.pc" | sed -e 's/^ARCH=//'`
+
+# Copy libraries to the project/libs subfolder
+mkdir -p "${PROJECT_BINARY_DIR}/lib"
+cp "${PROJECT_BINARY_DIR}/epics-base/lib/${EPICS_ARCH}/"*.a "${PROJECT_BINARY_DIR}/lib"
+chmod u+w -R "${PROJECT_BINARY_DIR}/lib"
+

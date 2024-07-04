@@ -1,0 +1,20 @@
+[submodule "epics-base"]
+	path = epics-base
+	url = https://git.launchpad.net/epics-base
+[submodule "ChimeraTK-ControlSystemAdapter-EPICS"]
+	path = ChimeraTK-ControlSystemAdapter-EPICS
+	url = https://github.com/aquenos/ChimeraTK-ControlSystemAdapter-EPICS
+[submodule "plugins/autosave"]
+	path = plugins/autosave
+	url = https://github.com/epics-modules/autosave.git
+[submodule "plugins/calc"]
+	path = plugins/calc
+	url = https://github.com/epics-modules/calc.git
+[submodule "epics7-base"]
+	path = epics7-base
+	url = https://github.com/epics-base/epics-base
+	branch = 7.0
+        fetchRecurseSubmodules = true
+[submodule "epics3-base"]
+	path = epics3-base
+	url = https://github.com/epics-base/epics-base

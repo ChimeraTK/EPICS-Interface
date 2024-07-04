@@ -1,0 +1,3 @@
+@Library('ChimeraTK') _
+env.CMAKE_EXTRA_ARGS="-DEPICS_VERSION=7"
+autojob(['ChimeraTK/ControlSystemAdapter'], 'https://github.com/ChimeraTK/ControlSystemAdapter-EPICS-IOC-Adapter')

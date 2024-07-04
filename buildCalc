@@ -1,0 +1,45 @@
+#!/bin/bash -e
+
+CALC_SOURCE="$1"
+PROJECT_BINARY_DIR="`pwd`"
+EPICS_BASE="${PROJECT_BINARY_DIR}/epics-base"
+
+# Determine architecture of the build
+EPICS_ARCH=`grep "^ARCH=" "${EPICS_BASE}/lib/pkgconfig/epics-base.pc" | sed -e 's/^ARCH=//'`
+
+# Function links file, generating subfolder if necessary
+makeLink() {
+   mkdir -p `dirname "${PROJECT_BINARY_DIR}/calc/$1"`
+   ln -sfn "${CALC_SOURCE}/$1" "${PROJECT_BINARY_DIR}/calc/$1"
+}
+
+export -f makeLink
+export PROJECT_BINARY_DIR
+export CALC_SOURCE
+
+# "find" generates a list of paths to any regular file below the source directory
+# and calls the makeLink function for every entry.
+# NOTE:Semikolon needs to be escaped
+if [ ! -f "${PROJECT_BINARY_DIR}/CalcSourceLinked" ]; then
+  cd "${CALC_SOURCE}/"
+  echo "Symlinking calc source..."
+  find -type f -exec bash -c "makeLink {}" \;
+  touch "${PROJECT_BINARY_DIR}/CalcSourceLinked"
+fi
+
+# Replacing the Symlink of the top level RELEASE file with a modified copy
+rm "${PROJECT_BINARY_DIR}/calc/configure/RELEASE"
+sed \
+-e 's:EPICS_BASE=.\+:EPICS_BASE='${EPICS_BASE}':' \
+-e 's:^[^#]*SSCAN=:#&:' \
+"${CALC_SOURCE}/configure/RELEASE" > "${PROJECT_BINARY_DIR}/calc/configure/RELEASE"
+
+# Build library
+echo "Build synApps calc library..."
+cd "${PROJECT_BINARY_DIR}/calc"
+make -j5 USR_CFLAGS=-w USR_CXXFLAGS=-w
+
+# Copy library to project/lib folder
+mkdir -p "${PROJECT_BINARY_DIR}/lib"
+cp "${PROJECT_BINARY_DIR}/calc/lib/${EPICS_ARCH}/"*.a "${PROJECT_BINARY_DIR}/lib"
+chmod u+w -R "${PROJECT_BINARY_DIR}/lib"
