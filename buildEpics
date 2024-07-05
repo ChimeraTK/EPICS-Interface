@@ -1,9 +1,15 @@
 #!/bin/bash -e
 
 EPICS_SOURCE="$1"
+TARGET_DIR="$2"
 PROJECT_BINARY_DIR="`pwd`"
 EPICS_BASE="${PROJECT_BINARY_DIR}/epics-base"
 mkdir -p "${EPICS_BASE}"
+
+echo "EPICS_SOURCE=${EPICS_SOURCE}"
+echo "TARGET_DIR=${TARGET_DIR}"
+echo "PROJECT_BINARY_DIR=${PROJECT_BINARY_DIR}"
+echo "EPICS_BASE=${EPICS_BASE}"
 
 # Function links file, generating subfolder if necessary
 makeLink() {
@@ -34,14 +40,12 @@ if [[ ${EPICS_SOURCE} =~ .*/epics7-base ]]; then
   sed -e '/top\/\.gitignore/d' "${EPICS_SOURCE}/src/template/ext/Makefile" > "${EPICS_BASE}/src/template/ext/Makefile"
 fi
 
+# create local site config
+cat > ${EPICS_BASE}/configure/CONFIG_SITE.local <<EOF
+INSTALL_LOCATION=${TARGET_DIR}
+EPICS_SITE_VERSION=ChimeraTK
+EOF
+
 echo "Build epics-base libraries..."
 cd "${EPICS_BASE}"
 make -j5 USR_CFLAGS=-w USR_CXXFLAGS=-w
-
-# Extract architecture, EPICS base was build against
-EPICS_ARCH=`grep "^ARCH=" "${EPICS_BASE}/lib/pkgconfig/epics-base.pc" | sed -e 's/^ARCH=//'`
-
-# Copy libraries to the project/libs subfolder
-mkdir -p "${PROJECT_BINARY_DIR}/lib"
-cp "${PROJECT_BINARY_DIR}/epics-base/lib/${EPICS_ARCH}/"*.a "${PROJECT_BINARY_DIR}/lib"
-chmod u+w -R "${PROJECT_BINARY_DIR}/lib"

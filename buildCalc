@@ -1,11 +1,8 @@
 #!/bin/bash -e
 
 CALC_SOURCE="$1"
+TARGET_DIR="$2"
 PROJECT_BINARY_DIR="`pwd`"
-EPICS_BASE="${PROJECT_BINARY_DIR}/epics-base"
-
-# Determine architecture of the build
-EPICS_ARCH=`grep "^ARCH=" "${EPICS_BASE}/lib/pkgconfig/epics-base.pc" | sed -e 's/^ARCH=//'`
 
 # Function links file, generating subfolder if necessary
 makeLink() {
@@ -30,16 +27,16 @@ fi
 # Replacing the Symlink of the top level RELEASE file with a modified copy
 rm "${PROJECT_BINARY_DIR}/calc/configure/RELEASE"
 sed \
--e 's:EPICS_BASE=.\+:EPICS_BASE='${EPICS_BASE}':' \
+-e 's:EPICS_BASE=.\+:EPICS_BASE='${TARGET_DIR}':' \
 -e 's:^[^#]*SSCAN=:#&:' \
 "${CALC_SOURCE}/configure/RELEASE" > "${PROJECT_BINARY_DIR}/calc/configure/RELEASE"
+
+# create local site config
+cat > ${PROJECT_BINARY_DIR}/calc/configure/CONFIG_SITE.local <<EOF
+INSTALL_LOCATION=${TARGET_DIR}
+EOF
 
 # Build library
 echo "Build synApps calc library..."
 cd "${PROJECT_BINARY_DIR}/calc"
 make -j5 USR_CFLAGS=-w USR_CXXFLAGS=-w
-
-# Copy library to project/lib folder
-mkdir -p "${PROJECT_BINARY_DIR}/lib"
-cp "${PROJECT_BINARY_DIR}/calc/lib/${EPICS_ARCH}/"*.a "${PROJECT_BINARY_DIR}/lib"
-chmod u+w -R "${PROJECT_BINARY_DIR}/lib"

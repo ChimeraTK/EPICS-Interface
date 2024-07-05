@@ -1,11 +1,8 @@
 #!/bin/bash -e
 
 AS_SOURCE="$1"
+TARGET_DIR="$2"
 PROJECT_BINARY_DIR="`pwd`"
-EPICS_BASE="${PROJECT_BINARY_DIR}/epics-base"
-
-# Determine architecture of the build
-EPICS_ARCH=`grep "^ARCH=" "${EPICS_BASE}/lib/pkgconfig/epics-base.pc" | sed -e 's/^ARCH=//'`
 
 # Function links file, generating subfolder if necessary
 makeLink() {
@@ -29,14 +26,13 @@ fi
 
 # Replacing the Symlink of the top level RELEASE file with a modified copy
 rm "${PROJECT_BINARY_DIR}/autosave/configure/RELEASE"
-sed -e 's:EPICS_BASE=.\+:EPICS_BASE='${EPICS_BASE}':' "${AS_SOURCE}/configure/RELEASE" > "${PROJECT_BINARY_DIR}/autosave/configure/RELEASE"
+sed -e 's:EPICS_BASE=.\+:EPICS_BASE='${TARGET_DIR}':' "${AS_SOURCE}/configure/RELEASE" > "${PROJECT_BINARY_DIR}/autosave/configure/RELEASE"
+
+# Replacing the Symlink of the top level CONFIG_SITE file with a modified copy
+rm "${PROJECT_BINARY_DIR}/autosave/configure/CONFIG_SITE"
+sed -e 's:#INSTALL_LOCATION=.\+:INSTALL_LOCATION='${TARGET_DIR}':' "${AS_SOURCE}/configure/CONFIG_SITE" > "${PROJECT_BINARY_DIR}/autosave/configure/CONFIG_SITE"
 
 # Build library
 echo "Build autosave library..."
 cd "${PROJECT_BINARY_DIR}/autosave"
 make -j5 USR_CFLAGS=-w USR_CXXFLAGS=-w
-
-# Copy library to project/lib folder
-mkdir -p "${PROJECT_BINARY_DIR}/lib"
-cp "${PROJECT_BINARY_DIR}/autosave/lib/${EPICS_ARCH}/"*.a "${PROJECT_BINARY_DIR}/lib"
-chmod u+w -R "${PROJECT_BINARY_DIR}/lib"
