@@ -1,0 +1,74 @@
+#!/bin/bash -e
+
+EPICS_SOURCE="$1"
+TARGET_DIR="$2"
+EPICS_ARCH="$3"
+PROJECT_BINARY_DIR="`pwd`"
+EPICS_BASE="${PROJECT_BINARY_DIR}/epics-base"
+mkdir -p "${EPICS_BASE}"
+
+echo "EPICS_SOURCE=${EPICS_SOURCE}"
+echo "TARGET_DIR=${TARGET_DIR}"
+echo "PROJECT_BINARY_DIR=${PROJECT_BINARY_DIR}"
+echo "EPICS_BASE=${EPICS_BASE}"
+echo "EPICS_ARCH=${EPICS_ARCH}"
+
+# Function links file, generating subfolder if necessary
+makeLink() {
+  ln -sfn "${EPICS_SOURCE}/$1" "${EPICS_BASE}/$1"
+}
+
+export -f makeLink
+export PROJECT_BINARY_DIR
+export EPICS_SOURCE
+export EPICS_BASE
+
+# "find" generates a list of paths to any regular file below the source directory
+# and calls the makeLink function for every entry.
+# NOTE:Semikolon needs to be escaped
+if [ ! -f "${PROJECT_BINARY_DIR}/epicsSourceLinked" ]; then
+  cd "${EPICS_SOURCE}/"
+  echo "Symlinking epics base source..."
+  find -type d -exec mkdir -p "${EPICS_BASE}/{}" \;
+  find -type f -exec bash -c "makeLink {}" \;
+  touch "${PROJECT_BINARY_DIR}/epicsSourceLinked"
+fi
+
+# Replacing the Symlink of the template base and ext Makefiles for EPICS7 with modified copies
+if [[ ${EPICS_SOURCE} =~ .*/epics7-base ]]; then
+  rm "${PROJECT_BINARY_DIR}/epics-base/src/template/base/Makefile"
+  sed -e '/top\/\.gitignore/d' "${EPICS_SOURCE}/src/template/base/Makefile" > "${EPICS_BASE}/src/template/base/Makefile"
+  rm "${PROJECT_BINARY_DIR}/epics-base/src/template/ext/Makefile"
+  sed -e '/top\/\.gitignore/d' "${EPICS_SOURCE}/src/template/ext/Makefile" > "${EPICS_BASE}/src/template/ext/Makefile"
+fi
+
+# create local site config
+cat > ${EPICS_BASE}/configure/CONFIG_SITE.local <<EOF
+INSTALL_LOCATION=${TARGET_DIR}
+EPICS_SITE_VERSION=ChimeraTK
+EOF
+
+echo "Configure epics-base libraries..."
+cd "${EPICS_BASE}"
+make configure.build
+
+echo "Determine include directories..."
+if [[ ${EPICS_SOURCE} =~ .*/epics7-base ]]; then
+  cd "${EPICS_BASE}/src/tools"
+  make
+  cd "${EPICS_BASE}/modules/database/src/tools"
+  make
+else
+  cd "${EPICS_BASE}/src/tools"
+  make
+fi
+
+cd "O.${EPICS_ARCH}"
+pkg-config ./epics-base-${EPICS_ARCH}.pc --cflags-only-I > ${PROJECT_BINARY_DIR}/include-dirs.temp
+rm -f ${PROJECT_BINARY_DIR}/include-dirs.txt
+touch ${PROJECT_BINARY_DIR}/include-dirs.txt
+for dir in `cat ${PROJECT_BINARY_DIR}/include-dirs.temp`; do
+  # create semicolon-separated list while stripping the -I from the beginning
+  echo -n "${dir:2};" >> ${PROJECT_BINARY_DIR}/include-dirs.txt
+done
+rm -f ${PROJECT_BINARY_DIR}/include-dirs.temp

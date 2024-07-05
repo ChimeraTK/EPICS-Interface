@@ -28,6 +28,13 @@ endif()
 
 string(TOUPPER ${EPICS_VER} EPICS_VER_UPPER)
 
+# determine EPICS host architecture string
+execute_process(COMMAND perl ${CMAKE_SOURCE_DIR}/${EPICS_VER}-base/src/tools/EpicsHostArch.pl
+                OUTPUT_VARIABLE EPICS_ARCH_TEMP RESULT_VARIABLE RESULT)
+if(NOT ${RESULT} EQUAL 0)
+  message(FATAL_ERROR "Cannot determine EPICS host architecture. Is perl installed?")
+endif()
+string(STRIP ${EPICS_ARCH_TEMP} EPICS_ARCH)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 
@@ -41,7 +48,7 @@ endif()
 
 # set directory to gather all resulting libraries
 set(TARGET_DIR ${CMAKE_INSTALL_PREFIX}/share/ChimeraTK-${EPICS_VER_UPPER})
-set(TARGET_LIB_DIR ${TARGET_DIR}/lib/linux-x86_64)
+set(TARGET_LIB_DIR ${TARGET_DIR}/lib/${EPICS_ARCH})
 
 # generate a list of all epics-base libraries, depending on epics version
 if(EPICS_VER STREQUAL "epics3")
@@ -66,9 +73,24 @@ else()
     ${TARGET_LIB_DIR}/libqsrv.a)
 endif()
 
+# configure EPICS base
+# The ulgy part is that we are going to install a few files into the CMAKE_INSTALL_PREFIX already at configuration time,
+# at least for EPICS7. There seems to be no other way to get to the pkg-config .pc file which contains valuable
+# information for us (include directories).
+execute_process(
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/configEpics "${CMAKE_CURRENT_SOURCE_DIR}/${EPICS_VER}-base" "${TARGET_DIR}" "${EPICS_ARCH}"
+  WORKING_DIRECTORY ${PROJECT_BINARY_DIR} RESULT_VARIABLE RESULT)
+
+if(NOT ${RESULT} EQUAL 0)
+  message(FATAL_ERROR "Cannot configure EPICS.")
+endif()
+
+file(READ ${PROJECT_BINARY_DIR}/include-dirs.txt INC_DIRS)
+
+
 # build EPICS base
 add_custom_target(${PROJECT_NAME}-base ALL
-  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildEpics "${CMAKE_CURRENT_SOURCE_DIR}/${EPICS_VER}-base" "${TARGET_DIR}"
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildEpics
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
   BYPRODUCTS ${EPICS_BASE_LIBS})
 
@@ -90,13 +112,13 @@ COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildCalc ${CMAKE_CURRENT_SOURCE_DIR}/plugin
 set(LIB_NAME EPICS${EPICS_VERSION})
 add_library(${LIB_NAME} INTERFACE)
 target_link_libraries(${LIB_NAME} INTERFACE ${EPICS_BASE_LIBS} ${TARGET_LIB_DIR}/libautosave.a ${TARGET_LIB_DIR}/libcalc.a)
-target_include_directories(${LIB_NAME} INTERFACE ${TARGET_DIR}/include)
-target_include_directories(${LIB_NAME} INTERFACE ${TARGET_DIR}/include/os/Linux)
-target_include_directories(${LIB_NAME} INTERFACE ${TARGET_DIR}/include/compiler/gcc)
+target_include_directories(${LIB_NAME} INTERFACE ${INC_DIRS})
 
 define_property(TARGET PROPERTY EPICS_BASE)
+define_property(TARGET PROPERTY EPICS_ARCH)
 set_property(TARGET ${LIB_NAME} PROPERTY EPICS_BASE ${TARGET_DIR})
-set_property(TARGET ${LIB_NAME} APPEND PROPERTY EXPORT_PROPERTIES EPICS_BASE)
+set_property(TARGET ${LIB_NAME} PROPERTY EPICS_ARCH ${TARGET_DIR})
+set_property(TARGET ${LIB_NAME} APPEND PROPERTY EXPORT_PROPERTIES EPICS_BASE EPICS_ARCH)
 
 add_library(ChimeraTK::${LIB_NAME} ALIAS ${LIB_NAME})
 
@@ -108,5 +130,5 @@ include(GNUInstallDirs)
 install(EXPORT ${LIB_NAME}
   FILE ${PROJECT_NAME}${EPICS_VERSION}Config.cmake
   NAMESPACE ChimeraTK::
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}${EPICS_VERSION}"
+  DESTINATION " ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}${EPICS_VERSION} "
 )

@@ -3,6 +3,9 @@
 AS_SOURCE="$1"
 TARGET_DIR="$2"
 PROJECT_BINARY_DIR="`pwd`"
+echo "AS_SOURCE=${AS_SOURCE}"
+echo "TARGET_DIR=${TARGET_DIR}"
+echo "PROJECT_BINARY_DIR=${PROJECT_BINARY_DIR}"
 
 # Function links file, generating subfolder if necessary
 makeLink() {
@@ -26,10 +29,12 @@ fi
 
 # Replacing the Symlink of the top level RELEASE file with a modified copy
 rm "${PROJECT_BINARY_DIR}/autosave/configure/RELEASE"
+echo sed -e 's:EPICS_BASE=.\+:EPICS_BASE='${TARGET_DIR}':' "${AS_SOURCE}/configure/RELEASE" > "${PROJECT_BINARY_DIR}/autosave/configure/RELEASE"
 sed -e 's:EPICS_BASE=.\+:EPICS_BASE='${TARGET_DIR}':' "${AS_SOURCE}/configure/RELEASE" > "${PROJECT_BINARY_DIR}/autosave/configure/RELEASE"
 
 # Replacing the Symlink of the top level CONFIG_SITE file with a modified copy
 rm "${PROJECT_BINARY_DIR}/autosave/configure/CONFIG_SITE"
+echo sed -e 's:#INSTALL_LOCATION=.\+:INSTALL_LOCATION='${TARGET_DIR}':' "${AS_SOURCE}/configure/CONFIG_SITE" > "${PROJECT_BINARY_DIR}/autosave/configure/CONFIG_SITE"
 sed -e 's:#INSTALL_LOCATION=.\+:INSTALL_LOCATION='${TARGET_DIR}':' "${AS_SOURCE}/configure/CONFIG_SITE" > "${PROJECT_BINARY_DIR}/autosave/configure/CONFIG_SITE"
 
 # Build library
