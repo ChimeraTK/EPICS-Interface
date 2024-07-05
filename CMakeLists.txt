@@ -74,8 +74,8 @@ else()
 endif()
 
 # configure EPICS base
-# The ulgy part is that we are going to install a few files into the CMAKE_INSTALL_PREFIX already at configuration time,
-# at least for EPICS7. There seems to be no other way to get to the pkg-config .pc file which contains valuable
+# The ulgy part is that we are going to install a few files into the CMAKE_INSTALL_PREFIX already at configuration time.
+# There seems to be no other way to get to the pkg-config .pc file which contains valuable
 # information for us (include directories).
 execute_process(
   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/configEpics "${CMAKE_CURRENT_SOURCE_DIR}/${EPICS_VER}-base" "${TARGET_DIR}" "${EPICS_ARCH}"
@@ -130,5 +130,5 @@ include(GNUInstallDirs)
 install(EXPORT ${LIB_NAME}
   FILE ${PROJECT_NAME}${EPICS_VERSION}Config.cmake
   NAMESPACE ChimeraTK::
-  DESTINATION " ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}${EPICS_VERSION} "
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}${EPICS_VERSION}"
 )
