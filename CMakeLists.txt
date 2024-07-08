@@ -5,7 +5,7 @@ project(ChimeraTK-EPICS)
 # Change project name, based on EPICS version
 OPTION(EPICS_VERSION "Select major version of EPICS to build (3 or 7)")
 if(NOT EPICS_VERSION)
-  set(EPICS_VERSION "3")
+  set(EPICS_VERSION "7")
 endif()
 if((EPICS_VERSION STREQUAL "3"))
   set(EPICS_VER "epics3")
@@ -112,15 +112,23 @@ COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildCalc ${CMAKE_CURRENT_SOURCE_DIR}/plugin
 set(LIB_NAME EPICS${EPICS_VERSION})
 add_library(${LIB_NAME} INTERFACE)
 target_link_libraries(${LIB_NAME} INTERFACE ${EPICS_BASE_LIBS} ${TARGET_LIB_DIR}/libautosave.a ${TARGET_LIB_DIR}/libcalc.a)
+target_link_libraries(${LIB_NAME} INTERFACE readline)
+if(EPICS_VER STREQUAL "epics7")
+  # NOTICE: Due to https://github.com/lloyd/yajl/issues/209 the correct linker flag is -lyajl_s.
+  # TODO: If this issue is resolved, the library might have to be changed from yail_s to yajl!
+  target_link_libraries(${LIB_NAME} INTERFACE yajl_s)
+endif()
+
 target_include_directories(${LIB_NAME} INTERFACE ${INC_DIRS})
 
 define_property(TARGET PROPERTY EPICS_BASE)
 define_property(TARGET PROPERTY EPICS_ARCH)
 set_property(TARGET ${LIB_NAME} PROPERTY EPICS_BASE ${TARGET_DIR})
-set_property(TARGET ${LIB_NAME} PROPERTY EPICS_ARCH ${TARGET_DIR})
+set_property(TARGET ${LIB_NAME} PROPERTY EPICS_ARCH ${EPICS_ARCH})
 set_property(TARGET ${LIB_NAME} APPEND PROPERTY EXPORT_PROPERTIES EPICS_BASE EPICS_ARCH)
 
 add_library(ChimeraTK::${LIB_NAME} ALIAS ${LIB_NAME})
+
 
 install(TARGETS ${LIB_NAME} EXPORT ${LIB_NAME})
 
