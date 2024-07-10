@@ -51,6 +51,8 @@ set(TARGET_DIR ${CMAKE_INSTALL_PREFIX}/share/ChimeraTK-${EPICS_VER_UPPER})
 set(TARGET_LIB_DIR ${TARGET_DIR}/lib/${EPICS_ARCH})
 
 # generate a list of all epics-base libraries, depending on epics version
+# Note: The order of libraries is important, otherwise linkage will break in downstream projects! Libraries which
+# depend on others must come before their dependencies.
 if(EPICS_VER STREQUAL "epics3")
   set(EPICS_BASE_LIBS ${TARGET_LIB_DIR}/libdbRecStd.a
     ${TARGET_LIB_DIR}/libdbCore.a
@@ -64,13 +66,14 @@ else()
     ${TARGET_LIB_DIR}/libca.a
     ${TARGET_LIB_DIR}/libCom.a
     ${TARGET_LIB_DIR}/libnt.a
-    ${TARGET_LIB_DIR}/libpvAccess.a
-    ${TARGET_LIB_DIR}/libpvAccessCA.a
+    ${TARGET_LIB_DIR}/libqsrv.a
     ${TARGET_LIB_DIR}/libpvAccessIOC.a
+    ${TARGET_LIB_DIR}/libpvAccessCA.a
+    ${TARGET_LIB_DIR}/libpvAccess.a
     ${TARGET_LIB_DIR}/libpvaClient.a
     ${TARGET_LIB_DIR}/libpvData.a
     ${TARGET_LIB_DIR}/libpvDatabase.a
-    ${TARGET_LIB_DIR}/libqsrv.a)
+  )
 endif()
 
 # configure EPICS base
@@ -111,7 +114,8 @@ COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildCalc ${CMAKE_CURRENT_SOURCE_DIR}/plugin
 # create interface library
 set(LIB_NAME EPICS${EPICS_VERSION})
 add_library(${LIB_NAME} INTERFACE)
-target_link_libraries(${LIB_NAME} INTERFACE ${EPICS_BASE_LIBS} ${TARGET_LIB_DIR}/libautosave.a ${TARGET_LIB_DIR}/libcalc.a)
+# Note: order of libraries is important!
+target_link_libraries(${LIB_NAME} INTERFACE ${TARGET_LIB_DIR}/libautosave.a ${TARGET_LIB_DIR}/libcalc.a ${EPICS_BASE_LIBS})
 target_link_libraries(${LIB_NAME} INTERFACE readline)
 if(EPICS_VER STREQUAL "epics7")
   # NOTICE: Due to https://github.com/lloyd/yajl/issues/209 the correct linker flag is -lyajl_s.
