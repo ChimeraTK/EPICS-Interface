@@ -48,6 +48,8 @@ endif()
 
 find_program(PATCHELF patchelf REQUIRED)
 
+find_program(PERL perl REQUIRED)
+
 # set directory to gather all resulting libraries
 set(TARGET_DIR ${CMAKE_INSTALL_PREFIX}/share/ChimeraTK-${EPICS_VER_UPPER})
 set(TARGET_LIB_DIR ${TARGET_DIR}/lib/${EPICS_ARCH})
