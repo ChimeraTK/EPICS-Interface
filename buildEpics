@@ -1,4 +1,11 @@
 #!/bin/bash -e
+
+TARGET_DIR="$1"
+EPICS_ARCH="$2"
+PROJECT_BINARY_DIR="`pwd`"
+EPICS_BASE="${PROJECT_BINARY_DIR}/epics-base"
+LIB_DIR="${TARGET_DIR}/lib/${EPICS_ARCH}"
+
 echo "Build epics-base libraries..."
-cd "epics-base"
+cd "${EPICS_BASE}"
 make -j5 USR_CFLAGS=-w USR_CXXFLAGS=-w

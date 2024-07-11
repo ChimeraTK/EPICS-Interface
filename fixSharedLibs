@@ -1,0 +1,60 @@
+#!/bin/bash -e
+
+echo "buildEpics $1 $2 $3"
+
+TARGET_DIR="$1"
+EPICS_ARCH="$2"
+EPICS_FULLVER="$3"
+PROJECT_BINARY_DIR="`pwd`"
+EPICS_BASE="${PROJECT_BINARY_DIR}/epics-base"
+LIB_DIR="${TARGET_DIR}/lib/${EPICS_ARCH}"
+
+cd "${LIB_DIR}"
+
+# make shared libraries writeable first
+for lib in *.so; do
+  chmod +w "${lib}"
+done
+
+# temp file, just used to conveniently restore timestamps of files
+TMPFIL=`mktemp`
+
+for lib in *.so; do
+  fullname=`readlink "${lib}" || true`
+
+  # if .so file is not a symlink: rename so the remaining treatment is identical
+  if [ -z "$fullname" ]; then
+    fullname="${lib}.${EPICS_FULLVER}"
+    mv "${lib}" "${fullname}"
+  fi
+
+  # if symlink target already ends with "-ChimeraTK", there is nothing to do
+  if [[ "$fullname" == *-ChimeraTK ]]; then
+    echo "$lib -> $fullname (already ok)"
+    continue
+  fi
+
+  echo "$lib -> $fullname -> $fullname-ChimeraTK"
+
+  # rename the library, update soname and link
+  mv "${fullname}" "${fullname}-ChimeraTK"
+  touch -r "${fullname}-ChimeraTK" "${TMPFIL}" # store timestmap
+  patchelf --set-soname "${fullname}-ChimeraTK" --set-rpath "${LIB_DIR}" "${fullname}-ChimeraTK"
+  touch -r "${TMPFIL}" "${fullname}-ChimeraTK" # restore timestamp
+  ln -sfn "${fullname}-ChimeraTK" "${lib}"
+  ln -sfn "${fullname}-ChimeraTK" "${fullname}"
+
+  # update all other libraries linking against this lib
+  for dependee in *.so; do
+    if [ "${dependee}" == "${lib}" ]; then
+      continue
+    fi
+    # this does nothing if 'dependee' does not actually depend on 'lib'
+    touch -r "${dependee}" "${TMPFIL}" # store timestmap
+    patchelf --replace-needed "${fullname}" "${fullname}-ChimeraTK" "${dependee}"
+    touch -r "${TMPFIL}" "${dependee}" # restore timestmap
+  done
+
+done
+
+rm -f "${TMPFIL}"

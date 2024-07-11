@@ -29,6 +29,7 @@ rm "${PROJECT_BINARY_DIR}/calc/configure/RELEASE"
 sed \
 -e 's:EPICS_BASE=.\+:EPICS_BASE='${TARGET_DIR}':' \
 -e 's:^[^#]*SSCAN=:#&:' \
+-e 's/^SUPPORT=/#SUPPORT=/' \
 "${CALC_SOURCE}/configure/RELEASE" > "${PROJECT_BINARY_DIR}/calc/configure/RELEASE"
 
 # create local site config

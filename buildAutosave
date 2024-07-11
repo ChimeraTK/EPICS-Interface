@@ -29,12 +29,10 @@ fi
 
 # Replacing the Symlink of the top level RELEASE file with a modified copy
 rm "${PROJECT_BINARY_DIR}/autosave/configure/RELEASE"
-echo sed -e 's:EPICS_BASE=.\+:EPICS_BASE='${TARGET_DIR}':' "${AS_SOURCE}/configure/RELEASE" > "${PROJECT_BINARY_DIR}/autosave/configure/RELEASE"
-sed -e 's:EPICS_BASE=.\+:EPICS_BASE='${TARGET_DIR}':' "${AS_SOURCE}/configure/RELEASE" > "${PROJECT_BINARY_DIR}/autosave/configure/RELEASE"
+sed -e 's:EPICS_BASE=.\+:EPICS_BASE='${TARGET_DIR}':' "${AS_SOURCE}/configure/RELEASE" > "${PROJECT_BINARY_DIR}/autosave/configure/RELEASE" -e 's/^SUPPORT=/#SUPPORT=/'
 
 # Replacing the Symlink of the top level CONFIG_SITE file with a modified copy
 rm "${PROJECT_BINARY_DIR}/autosave/configure/CONFIG_SITE"
-echo sed -e 's:#INSTALL_LOCATION=.\+:INSTALL_LOCATION='${TARGET_DIR}':' "${AS_SOURCE}/configure/CONFIG_SITE" > "${PROJECT_BINARY_DIR}/autosave/configure/CONFIG_SITE"
 sed -e 's:#INSTALL_LOCATION=.\+:INSTALL_LOCATION='${TARGET_DIR}':' "${AS_SOURCE}/configure/CONFIG_SITE" > "${PROJECT_BINARY_DIR}/autosave/configure/CONFIG_SITE"
 
 # Build library

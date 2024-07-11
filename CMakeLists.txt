@@ -46,6 +46,8 @@ if(EPICS_VER STREQUAL "epics7")
   find_package(libYajl REQUIRED)
 endif()
 
+find_program(PATCHELF patchelf REQUIRED)
+
 # set directory to gather all resulting libraries
 set(TARGET_DIR ${CMAKE_INSTALL_PREFIX}/share/ChimeraTK-${EPICS_VER_UPPER})
 set(TARGET_LIB_DIR ${TARGET_DIR}/lib/${EPICS_ARCH})
@@ -54,25 +56,25 @@ set(TARGET_LIB_DIR ${TARGET_DIR}/lib/${EPICS_ARCH})
 # Note: The order of libraries is important, otherwise linkage will break in downstream projects! Libraries which
 # depend on others must come before their dependencies.
 if(EPICS_VER STREQUAL "epics3")
-  set(EPICS_BASE_LIBS ${TARGET_LIB_DIR}/libdbRecStd.a
-    ${TARGET_LIB_DIR}/libdbCore.a
-    ${TARGET_LIB_DIR}/libca.a
-    ${TARGET_LIB_DIR}/libcas.a
-    ${TARGET_LIB_DIR}/libCom.a
-    ${TARGET_LIB_DIR}/libgdd.a)
+  set(EPICS_BASE_LIBS ${TARGET_LIB_DIR}/libdbRecStd.so
+    ${TARGET_LIB_DIR}/libdbCore.so
+    ${TARGET_LIB_DIR}/libca.so
+    ${TARGET_LIB_DIR}/libcas.so
+    ${TARGET_LIB_DIR}/libCom.so
+    ${TARGET_LIB_DIR}/libgdd.so)
 else()
-  set(EPICS_BASE_LIBS ${TARGET_LIB_DIR}/libdbRecStd.a
-    ${TARGET_LIB_DIR}/libdbCore.a
-    ${TARGET_LIB_DIR}/libca.a
-    ${TARGET_LIB_DIR}/libCom.a
-    ${TARGET_LIB_DIR}/libnt.a
-    ${TARGET_LIB_DIR}/libqsrv.a
-    ${TARGET_LIB_DIR}/libpvAccessIOC.a
-    ${TARGET_LIB_DIR}/libpvAccessCA.a
-    ${TARGET_LIB_DIR}/libpvAccess.a
-    ${TARGET_LIB_DIR}/libpvaClient.a
-    ${TARGET_LIB_DIR}/libpvData.a
-    ${TARGET_LIB_DIR}/libpvDatabase.a
+  set(EPICS_BASE_LIBS ${TARGET_LIB_DIR}/libdbRecStd.so
+    ${TARGET_LIB_DIR}/libdbCore.so
+    ${TARGET_LIB_DIR}/libca.so
+    ${TARGET_LIB_DIR}/libCom.so
+    ${TARGET_LIB_DIR}/libnt.so
+    ${TARGET_LIB_DIR}/libqsrv.so
+    ${TARGET_LIB_DIR}/libpvAccessIOC.so
+    ${TARGET_LIB_DIR}/libpvAccessCA.so
+    ${TARGET_LIB_DIR}/libpvAccess.so
+    ${TARGET_LIB_DIR}/libpvaClient.so
+    ${TARGET_LIB_DIR}/libpvData.so
+    ${TARGET_LIB_DIR}/libpvDatabase.so
   )
 endif()
 
@@ -90,10 +92,9 @@ endif()
 
 file(READ ${PROJECT_BINARY_DIR}/include-dirs.txt INC_DIRS)
 
-
 # build EPICS base
 add_custom_target(${PROJECT_NAME}-base ALL
-  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildEpics
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildEpics "${TARGET_DIR}" "${EPICS_ARCH}"
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
   BYPRODUCTS ${EPICS_BASE_LIBS})
 
@@ -102,14 +103,20 @@ add_custom_target(${PROJECT_NAME}-autosave ALL
   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildAutosave ${CMAKE_CURRENT_SOURCE_DIR}/plugins/autosave "${TARGET_DIR}"
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
   DEPENDS ${PROJECT_NAME}-base
-  BYPRODUCTS ${TARGET_LIB_DIR}/libautosave.a)
+  BYPRODUCTS ${TARGET_LIB_DIR}/libautosave.so)
 
 # build calc
 add_custom_target(${PROJECT_NAME}-calc ALL
 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildCalc ${CMAKE_CURRENT_SOURCE_DIR}/plugins/calc "${TARGET_DIR}"
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
   DEPENDS ${PROJECT_NAME}-base
-  BYPRODUCTS ${TARGET_LIB_DIR}/libcalc.a)
+  BYPRODUCTS ${TARGET_LIB_DIR}/libcalc.so)
+
+# fix shared library names and dependencies
+add_custom_target(${PROJECT_NAME}-sharedlibs ALL
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/fixSharedLibs "${TARGET_DIR}" "${EPICS_ARCH}" "${EPICS_FULLVER}"
+  WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+  DEPENDS ${PROJECT_NAME}-base ${PROJECT_NAME}-autosave ${PROJECT_NAME}-calc)
 
 # create interface library
 set(LIB_NAME EPICS${EPICS_VERSION})
