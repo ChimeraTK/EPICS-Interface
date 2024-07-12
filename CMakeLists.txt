@@ -4,9 +4,11 @@ project(ChimeraTK-EPICS)
 
 # Change project name, based on EPICS version
 OPTION(EPICS_VERSION "Select major version of EPICS to build (3 or 7)")
+
 if(NOT EPICS_VERSION)
   set(EPICS_VERSION "7")
 endif()
+
 if((EPICS_VERSION STREQUAL "3"))
   set(EPICS_VER "epics3")
   set(EPICS_FULLVER "3.15.9")
@@ -21,19 +23,21 @@ elseif(EPICS_VERSION STREQUAL "7")
   set(${PROJECT_NAME}_PATCH_VERSION 08)
 else()
   message(FATAL_ERROR "Unknown EPICS version specified: ${EPICS_VERSION}!\n"
-                      "Please pass to cmake command line one of the following:\n"
-                      "-DEPICS_VERSION=3 to build against EPICS ver. 3.15.9\n"
-                      "-DEPICS_VERSION=7 to build against EPICS ver. 7.0.8.1")
+    "Please pass to cmake command line one of the following:\n"
+    "-DEPICS_VERSION=3 to build against EPICS ver. 3.15.9\n"
+    "-DEPICS_VERSION=7 to build against EPICS ver. 7.0.8.1")
 endif()
 
 string(TOUPPER ${EPICS_VER} EPICS_VER_UPPER)
 
 # determine EPICS host architecture string
 execute_process(COMMAND perl ${CMAKE_SOURCE_DIR}/${EPICS_VER}-base/src/tools/EpicsHostArch.pl
-                OUTPUT_VARIABLE EPICS_ARCH_TEMP RESULT_VARIABLE RESULT)
+  OUTPUT_VARIABLE EPICS_ARCH_TEMP RESULT_VARIABLE RESULT)
+
 if(NOT ${RESULT} EQUAL 0)
   message(FATAL_ERROR "Cannot determine EPICS host architecture. Is perl installed?")
 endif()
+
 string(STRIP ${EPICS_ARCH_TEMP} EPICS_ARCH)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
@@ -41,6 +45,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${C
 include(cmake/set_version_numbers.cmake)
 
 find_package(readline REQUIRED)
+
 # EPICS 7 requires the Yet Another JSON Library
 if(EPICS_VER STREQUAL "epics7")
   find_package(libYajl REQUIRED)
@@ -109,7 +114,7 @@ add_custom_target(${PROJECT_NAME}-autosave ALL
 
 # build calc
 add_custom_target(${PROJECT_NAME}-calc ALL
-COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildCalc ${CMAKE_CURRENT_SOURCE_DIR}/plugins/calc "${TARGET_DIR}"
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildCalc ${CMAKE_CURRENT_SOURCE_DIR}/plugins/calc "${TARGET_DIR}"
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
   DEPENDS ${PROJECT_NAME}-base
   BYPRODUCTS ${TARGET_LIB_DIR}/libcalc.so)
@@ -123,9 +128,11 @@ add_custom_target(${PROJECT_NAME}-sharedlibs ALL
 # create interface library
 set(LIB_NAME EPICS${EPICS_VERSION})
 add_library(${LIB_NAME} INTERFACE)
+
 # Note: order of libraries is important!
 target_link_libraries(${LIB_NAME} INTERFACE ${TARGET_LIB_DIR}/libautosave.a ${TARGET_LIB_DIR}/libcalc.a ${EPICS_BASE_LIBS})
 target_link_libraries(${LIB_NAME} INTERFACE readline)
+
 if(EPICS_VER STREQUAL "epics7")
   # NOTICE: Due to https://github.com/lloyd/yajl/issues/209 the correct linker flag is -lyajl_s.
   # TODO: If this issue is resolved, the library might have to be changed from yail_s to yajl!
@@ -134,22 +141,28 @@ endif()
 
 target_include_directories(${LIB_NAME} INTERFACE ${INC_DIRS})
 
-define_property(TARGET PROPERTY EPICS_BASE)
-define_property(TARGET PROPERTY EPICS_ARCH)
-set_property(TARGET ${LIB_NAME} PROPERTY EPICS_BASE ${TARGET_DIR})
-set_property(TARGET ${LIB_NAME} PROPERTY EPICS_ARCH ${EPICS_ARCH})
-set_property(TARGET ${LIB_NAME} APPEND PROPERTY EXPORT_PROPERTIES EPICS_BASE EPICS_ARCH)
-
+# This only works for newer cmake versions. Enable once we got rid of Ubunutu 20.04! Workaround is below...
+# define_property(TARGET PROPERTY INTERFACE_EPICS_BASE)
+# define_property(TARGET PROPERTY INTERFACE_EPICS_ARCH)
+# set_property(TARGET ${LIB_NAME} APPEND PROPERTY EXPORT_PROPERTIES INTERFACE_EPICS_BASE INTERFACE_EPICS_ARCH)
+# set_property(TARGET ${LIB_NAME} PROPERTY INTERFACE_EPICS_BASE ${TARGET_DIR})
+# set_property(TARGET ${LIB_NAME} PROPERTY INTERFACE_EPICS_ARCH ${EPICS_ARCH})
 add_library(ChimeraTK::${LIB_NAME} ALIAS ${LIB_NAME})
-
 
 install(TARGETS ${LIB_NAME} EXPORT ${LIB_NAME})
 
 # this defines architecture-dependent ${CMAKE_INSTALL_LIBDIR}
 include(GNUInstallDirs)
+
 # generate and install export file
 install(EXPORT ${LIB_NAME}
   FILE ${PROJECT_NAME}${EPICS_VERSION}Config.cmake
   NAMESPACE ChimeraTK::
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}${EPICS_VERSION}"
 )
+
+# This is the workaround for the missing support for additional properties at exported targets in older cmake verions.
+configure_file(${CMAKE_SOURCE_DIR}/additionalExports.cmake.in
+  ${CMAKE_BINARY_DIR}/${PROJECT_NAME}${EPICS_VERSION}Config-properties.cmake)
+install(FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}${EPICS_VERSION}Config-properties.cmake
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}${EPICS_VERSION}")
