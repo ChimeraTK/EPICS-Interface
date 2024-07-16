@@ -11,20 +11,19 @@ endif()
 
 if((EPICS_VERSION STREQUAL "3"))
   set(EPICS_FULLVER "3.15.9")
-  set(${PROJECT_NAME}_MAJOR_VERSION 03)
-  set(${PROJECT_NAME}_MINOR_VERSION 15)
-  set(${PROJECT_NAME}_PATCH_VERSION 09)
 elseif(EPICS_VERSION STREQUAL "7")
   set(EPICS_FULLVER "7.0.8")
-  set(${PROJECT_NAME}_MAJOR_VERSION 07)
-  set(${PROJECT_NAME}_MINOR_VERSION 00)
-  set(${PROJECT_NAME}_PATCH_VERSION 08)
 else()
   message(FATAL_ERROR "Unknown EPICS version specified: ${EPICS_VERSION}!\n"
     "Please pass to cmake command line one of the following:\n"
     "-DEPICS_VERSION=3 to build against EPICS ver. 3.15.9\n"
     "-DEPICS_VERSION=7 to build against EPICS ver. 7.0.8.1")
 endif()
+
+set(${PROJECT_NAME}_MAJOR_VERSION 01)
+set(${PROJECT_NAME}_MINOR_VERSION 00)
+set(${PROJECT_NAME}_PATCH_VERSION 00)
+include(cmake/set_version_numbers.cmake)
 
 # determine EPICS host architecture string
 execute_process(COMMAND perl ${CMAKE_SOURCE_DIR}/epics${EPICS_VERSION}-base/src/tools/EpicsHostArch.pl
@@ -37,8 +36,6 @@ endif()
 string(STRIP ${EPICS_ARCH_TEMP} EPICS_ARCH)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
-
-include(cmake/set_version_numbers.cmake)
 
 find_package(readline REQUIRED)
 
