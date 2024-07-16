@@ -1,3 +1,5 @@
 # Note: Property names added to interface libraries have to start with INTERFACE_ for older cmake versions!
-set_property(TARGET ChimeraTK::${LIB_NAME} PROPERTY INTERFACE_EPICS_BASE ${TARGET_DIR})
-set_property(TARGET ChimeraTK::${LIB_NAME} PROPERTY INTERFACE_EPICS_ARCH ${EPICS_ARCH})
+set_property(TARGET ChimeraTK::EPICS PROPERTY INTERFACE_EPICS_BASE ${TARGET_DIR})
+set_property(TARGET ChimeraTK::EPICS PROPERTY INTERFACE_EPICS_ARCH ${EPICS_ARCH})
+set_property(TARGET ChimeraTK::EPICS PROPERTY INTERFACE_EPICS_ARCH ${EPICS_ARCH})
+set_property(TARGET ChimeraTK::EPICS PROPERTY INTERFACE_EPICS_VERSION ${EPICS_VERSION})

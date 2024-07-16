@@ -122,43 +122,42 @@ add_custom_target(${PROJECT_NAME}-sharedlibs ALL
   DEPENDS ${PROJECT_NAME}-base ${PROJECT_NAME}-autosave ${PROJECT_NAME}-calc)
 
 # create interface library
-set(LIB_NAME EPICS${EPICS_VERSION})
-add_library(${LIB_NAME} INTERFACE)
+add_library(EPICS INTERFACE)
 
 # Note: order of libraries is important!
-target_link_libraries(${LIB_NAME} INTERFACE ${TARGET_LIB_DIR}/libautosave.a ${TARGET_LIB_DIR}/libcalc.a ${EPICS_BASE_LIBS})
-target_link_libraries(${LIB_NAME} INTERFACE readline)
+target_link_libraries(EPICS INTERFACE ${TARGET_LIB_DIR}/libautosave.a ${TARGET_LIB_DIR}/libcalc.a ${EPICS_BASE_LIBS})
+target_link_libraries(EPICS INTERFACE readline)
 
 if(EPICS_VERSION STREQUAL "7")
   # NOTICE: Due to https://github.com/lloyd/yajl/issues/209 the correct linker flag is -lyajl_s.
   # TODO: If this issue is resolved, the library might have to be changed from yail_s to yajl!
-  target_link_libraries(${LIB_NAME} INTERFACE yajl_s)
+  target_link_libraries(EPICS INTERFACE yajl_s)
 endif()
 
-target_include_directories(${LIB_NAME} INTERFACE ${INC_DIRS})
+target_include_directories(EPICS INTERFACE ${INC_DIRS})
 
 # This only works for newer cmake versions. Enable once we got rid of Ubunutu 20.04! Workaround is below...
 # define_property(TARGET PROPERTY INTERFACE_EPICS_BASE)
 # define_property(TARGET PROPERTY INTERFACE_EPICS_ARCH)
-# set_property(TARGET ${LIB_NAME} APPEND PROPERTY EXPORT_PROPERTIES INTERFACE_EPICS_BASE INTERFACE_EPICS_ARCH)
-# set_property(TARGET ${LIB_NAME} PROPERTY INTERFACE_EPICS_BASE ${TARGET_DIR})
-# set_property(TARGET ${LIB_NAME} PROPERTY INTERFACE_EPICS_ARCH ${EPICS_ARCH})
-add_library(ChimeraTK::${LIB_NAME} ALIAS ${LIB_NAME})
+# set_property(TARGET EPICS APPEND PROPERTY EXPORT_PROPERTIES INTERFACE_EPICS_BASE INTERFACE_EPICS_ARCH)
+# set_property(TARGET EPICS PROPERTY INTERFACE_EPICS_BASE ${TARGET_DIR})
+# set_property(TARGET EPICS PROPERTY INTERFACE_EPICS_ARCH ${EPICS_ARCH})
+add_library(ChimeraTK::EPICS ALIAS EPICS)
 
-install(TARGETS ${LIB_NAME} EXPORT ${LIB_NAME})
+install(TARGETS EPICS EXPORT EPICS)
 
 # this defines architecture-dependent ${CMAKE_INSTALL_LIBDIR}
 include(GNUInstallDirs)
 
 # generate and install export file
-install(EXPORT ${LIB_NAME}
-  FILE ${PROJECT_NAME}${EPICS_VERSION}Config.cmake
+install(EXPORT EPICS
+  FILE ${PROJECT_NAME}Config.cmake
   NAMESPACE ChimeraTK::
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}${EPICS_VERSION}"
 )
 
 # This is the workaround for the missing support for additional properties at exported targets in older cmake verions.
 configure_file(${CMAKE_SOURCE_DIR}/additionalExports.cmake.in
-  ${CMAKE_BINARY_DIR}/${PROJECT_NAME}${EPICS_VERSION}Config-properties.cmake)
-install(FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}${EPICS_VERSION}Config-properties.cmake
+  ${CMAKE_BINARY_DIR}/${PROJECT_NAME}Config-properties.cmake)
+install(FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}Config-properties.cmake
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}${EPICS_VERSION}")
