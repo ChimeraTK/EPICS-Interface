@@ -10,13 +10,11 @@ if(NOT EPICS_VERSION)
 endif()
 
 if((EPICS_VERSION STREQUAL "3"))
-  set(EPICS_VER "epics3")
   set(EPICS_FULLVER "3.15.9")
   set(${PROJECT_NAME}_MAJOR_VERSION 03)
   set(${PROJECT_NAME}_MINOR_VERSION 15)
   set(${PROJECT_NAME}_PATCH_VERSION 09)
 elseif(EPICS_VERSION STREQUAL "7")
-  set(EPICS_VER "epics7")
   set(EPICS_FULLVER "7.0.8")
   set(${PROJECT_NAME}_MAJOR_VERSION 07)
   set(${PROJECT_NAME}_MINOR_VERSION 00)
@@ -28,10 +26,8 @@ else()
     "-DEPICS_VERSION=7 to build against EPICS ver. 7.0.8.1")
 endif()
 
-string(TOUPPER ${EPICS_VER} EPICS_VER_UPPER)
-
 # determine EPICS host architecture string
-execute_process(COMMAND perl ${CMAKE_SOURCE_DIR}/${EPICS_VER}-base/src/tools/EpicsHostArch.pl
+execute_process(COMMAND perl ${CMAKE_SOURCE_DIR}/epics${EPICS_VERSION}-base/src/tools/EpicsHostArch.pl
   OUTPUT_VARIABLE EPICS_ARCH_TEMP RESULT_VARIABLE RESULT)
 
 if(NOT ${RESULT} EQUAL 0)
@@ -47,7 +43,7 @@ include(cmake/set_version_numbers.cmake)
 find_package(readline REQUIRED)
 
 # EPICS 7 requires the Yet Another JSON Library
-if(EPICS_VER STREQUAL "epics7")
+if(EPICS_VERSION STREQUAL "7")
   find_package(libYajl REQUIRED)
 endif()
 
@@ -56,13 +52,13 @@ find_program(PATCHELF patchelf REQUIRED)
 find_program(PERL perl REQUIRED)
 
 # set directory to gather all resulting libraries
-set(TARGET_DIR ${CMAKE_INSTALL_PREFIX}/share/ChimeraTK-${EPICS_VER_UPPER})
+set(TARGET_DIR ${CMAKE_INSTALL_PREFIX}/share/ChimeraTK-EPICS${EPICS_VERSION})
 set(TARGET_LIB_DIR ${TARGET_DIR}/lib/${EPICS_ARCH})
 
 # generate a list of all epics-base libraries, depending on epics version
 # Note: The order of libraries is important, otherwise linkage will break in downstream projects! Libraries which
 # depend on others must come before their dependencies.
-if(EPICS_VER STREQUAL "epics3")
+if(EPICS_VERSION STREQUAL "3")
   set(EPICS_BASE_LIBS ${TARGET_LIB_DIR}/libdbRecStd.so
     ${TARGET_LIB_DIR}/libdbCore.so
     ${TARGET_LIB_DIR}/libca.so
@@ -90,7 +86,7 @@ endif()
 # There seems to be no other way to get to the pkg-config .pc file which contains valuable
 # information for us (include directories).
 execute_process(
-  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/configEpics "${CMAKE_CURRENT_SOURCE_DIR}/${EPICS_VER}-base" "${TARGET_DIR}" "${EPICS_ARCH}"
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/configEpics "${CMAKE_CURRENT_SOURCE_DIR}/epics${EPICS_VERSION}-base" "${TARGET_DIR}" "${EPICS_ARCH}"
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR} RESULT_VARIABLE RESULT)
 
 if(NOT ${RESULT} EQUAL 0)
@@ -133,7 +129,7 @@ add_library(${LIB_NAME} INTERFACE)
 target_link_libraries(${LIB_NAME} INTERFACE ${TARGET_LIB_DIR}/libautosave.a ${TARGET_LIB_DIR}/libcalc.a ${EPICS_BASE_LIBS})
 target_link_libraries(${LIB_NAME} INTERFACE readline)
 
-if(EPICS_VER STREQUAL "epics7")
+if(EPICS_VERSION STREQUAL "7")
   # NOTICE: Due to https://github.com/lloyd/yajl/issues/209 the correct linker flag is -lyajl_s.
   # TODO: If this issue is resolved, the library might have to be changed from yail_s to yajl!
   target_link_libraries(${LIB_NAME} INTERFACE yajl_s)
