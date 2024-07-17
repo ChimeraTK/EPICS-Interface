@@ -1,19 +1,26 @@
 #!/bin/bash -e
 
-echo "buildEpics $1 $2 $3"
-
-TARGET_DIR="$1"
+TARGET_DIR_FINAL="$1"
 EPICS_ARCH="$2"
 EPICS_FULLVER="$3"
 PROJECT_BINARY_DIR="`pwd`"
 EPICS_BASE="${PROJECT_BINARY_DIR}/epics-base"
+TARGET_DIR="${PROJECT_BINARY_DIR}/epics-temp"
 LIB_DIR="${TARGET_DIR}/lib/${EPICS_ARCH}"
+LIB_DIR_FINAL="${TARGET_DIR_FINAL}/lib/${EPICS_ARCH}"
+BIN_DIR="${TARGET_DIR}/bin/${EPICS_ARCH}"
+
+#######################################################################################################################
+# Rename shared libraries, update their depedees and set the rpath
 
 cd "${LIB_DIR}"
 
-# make shared libraries writeable first
+# make shared libraries and executables writeable first
 for lib in *.so; do
   chmod +w "${lib}"
+done
+for exe in "${BIN_DIR}"/*; do
+  chmod +w "${exe}"
 done
 
 # temp file, just used to conveniently restore timestamps of files
@@ -39,7 +46,7 @@ for lib in *.so; do
   # rename the library, update soname and link
   mv "${fullname}" "${fullname}-ChimeraTK"
   touch -r "${fullname}-ChimeraTK" "${TMPFIL}" # store timestmap
-  patchelf --set-soname "${fullname}-ChimeraTK" --set-rpath "${LIB_DIR}" "${fullname}-ChimeraTK"
+  patchelf --set-soname "${fullname}-ChimeraTK" --set-rpath "${LIB_DIR_FINAL}" "${fullname}-ChimeraTK"
   touch -r "${TMPFIL}" "${fullname}-ChimeraTK" # restore timestamp
   ln -sfn "${fullname}-ChimeraTK" "${lib}"
   ln -sfn "${fullname}-ChimeraTK" "${fullname}"
@@ -55,6 +62,32 @@ for lib in *.so; do
     touch -r "${TMPFIL}" "${dependee}" # restore timestmap
   done
 
+  # update all binaries linking against this lib (and update their rpath along)
+  for dependee in "${BIN_DIR}"/*; do
+    # ignore non-elf files (like perl scripts)
+    if ! patchelf --print-rpath "${dependee}" 2> /dev/null; then
+      continue
+    fi
+    # this does nothing if 'dependee' does not actually depend on 'lib'
+    touch -r "${dependee}" "${TMPFIL}" # store timestmap
+    echo patchelf --replace-needed "${fullname}" "${fullname}-ChimeraTK" --set-rpath "${LIB_DIR_FINAL}" "${dependee}"
+    patchelf --replace-needed "${fullname}" "${fullname}-ChimeraTK" --set-rpath "${LIB_DIR_FINAL}" "${dependee}"
+    touch -r "${TMPFIL}" "${dependee}" # restore timestmap
+  done
+
 done
 
 rm -f "${TMPFIL}"
+
+#######################################################################################################################
+# Vaguely related: Patch config files which are installed and contain the temporary install directory
+
+rm -rf ${TARGET_DIR}/configure-patched
+cp -r ${TARGET_DIR}/configure ${TARGET_DIR}/configure-patched
+for cfg in "${TARGET_DIR}/configure-patched"/*; do
+  if [ ! -f "${cfg}" ]; then
+    continue
+  fi
+  chmod +w "${cfg}"
+  sed -e "s!${TARGET_DIR}!${TARGET_DIR_FINAL}!g" -i "${cfg}"
+done

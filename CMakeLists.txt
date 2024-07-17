@@ -51,32 +51,38 @@ find_program(PERL perl REQUIRED)
 # set directory to gather all resulting libraries
 set(TARGET_DIR ${CMAKE_INSTALL_PREFIX}/share/ChimeraTK-EPICS${EPICS_VERSION})
 set(TARGET_LIB_DIR ${TARGET_DIR}/lib/${EPICS_ARCH})
+set(TEMP_TARGET_DIR ${CMAKE_BINARY_DIR}/epics-temp)
+set(TEMP_TARGET_LIB_DIR ${TEMP_TARGET_DIR}/lib/${EPICS_ARCH})
 
 # generate a list of all epics-base libraries, depending on epics version
 # Note: The order of libraries is important, otherwise linkage will break in downstream projects! Libraries which
 # depend on others must come before their dependencies.
 if(EPICS_VERSION STREQUAL "3")
-  set(EPICS_BASE_LIBS ${TARGET_LIB_DIR}/libdbRecStd.so
-    ${TARGET_LIB_DIR}/libdbCore.so
-    ${TARGET_LIB_DIR}/libca.so
-    ${TARGET_LIB_DIR}/libcas.so
-    ${TARGET_LIB_DIR}/libCom.so
-    ${TARGET_LIB_DIR}/libgdd.so)
+  set(EPICS_BASE_LIBS_RELATIVE libdbRecStd.so
+    libdbCore.so
+    libca.so
+    libcas.so
+    libCom.so
+    libgdd.so)
 else()
-  set(EPICS_BASE_LIBS ${TARGET_LIB_DIR}/libdbRecStd.so
-    ${TARGET_LIB_DIR}/libdbCore.so
-    ${TARGET_LIB_DIR}/libca.so
-    ${TARGET_LIB_DIR}/libCom.so
-    ${TARGET_LIB_DIR}/libnt.so
-    ${TARGET_LIB_DIR}/libqsrv.so
-    ${TARGET_LIB_DIR}/libpvAccessIOC.so
-    ${TARGET_LIB_DIR}/libpvAccessCA.so
-    ${TARGET_LIB_DIR}/libpvAccess.so
-    ${TARGET_LIB_DIR}/libpvaClient.so
-    ${TARGET_LIB_DIR}/libpvData.so
-    ${TARGET_LIB_DIR}/libpvDatabase.so
+  set(EPICS_BASE_LIBS_RELATIVE libdbRecStd.so
+    libdbCore.so
+    libca.so
+    libCom.so
+    libnt.so
+    libqsrv.so
+    libpvAccessIOC.so
+    libpvAccessCA.so
+    libpvAccess.so
+    libpvaClient.so
+    libpvData.so
+    libpvDatabase.so
   )
 endif()
+
+set(EPICS_BASE_LIBS ${EPICS_BASE_LIBS_RELATIVE})
+list(TRANSFORM EPICS_BASE_LIBS PREPEND "${TARGET_LIB_DIR}/")
+list(TRANSFORM TEMP_EPICS_BASE_LIBS PREPEND "${TEMP_TARGET_LIB_DIR}/")
 
 # configure EPICS base
 # The ulgy part is that we are going to install a few files into the CMAKE_INSTALL_PREFIX already at configuration time.
@@ -96,21 +102,21 @@ file(READ ${PROJECT_BINARY_DIR}/include-dirs.txt INC_DIRS)
 add_custom_target(${PROJECT_NAME}-base ALL
   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildEpics "${TARGET_DIR}" "${EPICS_ARCH}"
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-  BYPRODUCTS ${EPICS_BASE_LIBS})
+  BYPRODUCTS ${TEMP_EPICS_BASE_LIBS})
 
 # build autosave
 add_custom_target(${PROJECT_NAME}-autosave ALL
-  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildAutosave ${CMAKE_CURRENT_SOURCE_DIR}/plugins/autosave "${TARGET_DIR}"
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildAutosave ${CMAKE_CURRENT_SOURCE_DIR}/plugins/autosave "${TEMP_TARGET_DIR}"
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
   DEPENDS ${PROJECT_NAME}-base
-  BYPRODUCTS ${TARGET_LIB_DIR}/libautosave.so)
+  BYPRODUCTS ${TEMP_TARGET_LIB_DIR}/libautosave.so)
 
 # build calc
 add_custom_target(${PROJECT_NAME}-calc ALL
-  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildCalc ${CMAKE_CURRENT_SOURCE_DIR}/plugins/calc "${TARGET_DIR}"
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/buildCalc ${CMAKE_CURRENT_SOURCE_DIR}/plugins/calc "${TEMP_TARGET_DIR}"
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
   DEPENDS ${PROJECT_NAME}-base
-  BYPRODUCTS ${TARGET_LIB_DIR}/libcalc.so)
+  BYPRODUCTS ${TEMP_TARGET_LIB_DIR}/libcalc.so)
 
 # fix shared library names and dependencies
 add_custom_target(${PROJECT_NAME}-sharedlibs ALL
@@ -122,7 +128,7 @@ add_custom_target(${PROJECT_NAME}-sharedlibs ALL
 add_library(EPICS INTERFACE)
 
 # Note: order of libraries is important!
-target_link_libraries(EPICS INTERFACE ${TARGET_LIB_DIR}/libautosave.a ${TARGET_LIB_DIR}/libcalc.a ${EPICS_BASE_LIBS})
+target_link_libraries(EPICS INTERFACE ${TARGET_LIB_DIR}/libautosave.so ${TARGET_LIB_DIR}/libcalc.so ${EPICS_BASE_LIBS})
 target_link_libraries(EPICS INTERFACE readline)
 
 if(EPICS_VERSION STREQUAL "7")
@@ -145,6 +151,40 @@ install(TARGETS EPICS EXPORT EPICS)
 
 # this defines architecture-dependent ${CMAKE_INSTALL_LIBDIR}
 include(GNUInstallDirs)
+
+#
+install(DIRECTORY ${TEMP_TARGET_DIR}/lib/${EPICS_ARCH}
+  DESTINATION ${TARGET_DIR}/lib
+  COMPONENT Runtime
+  FILES_MATCHING PATTERN "*.so.*-ChimeraTK")
+
+install(DIRECTORY ${TEMP_TARGET_DIR}/lib/${EPICS_ARCH}
+  DESTINATION ${TARGET_DIR}/lib
+  COMPONENT Development
+  FILES_MATCHING PATTERN "*.so")
+
+install(DIRECTORY ${TEMP_TARGET_DIR}/lib/perl ${TEMP_TARGET_DIR}/lib/pkgconfig
+  DESTINATION ${TARGET_DIR}/lib
+  COMPONENT Development)
+
+install(DIRECTORY ${TEMP_TARGET_DIR}/cfg ${TEMP_TARGET_DIR}/db
+  ${TEMP_TARGET_DIR}/dbd ${TEMP_TARGET_DIR}/include ${TEMP_TARGET_DIR}/templates
+  DESTINATION ${TARGET_DIR}
+  COMPONENT Development)
+
+install(DIRECTORY ${TEMP_TARGET_DIR}/configure-patched/
+  DESTINATION ${TARGET_DIR}/configure
+  COMPONENT Development)
+
+install(DIRECTORY ${TEMP_TARGET_DIR}/bin/${EPICS_ARCH}
+  DESTINATION ${TARGET_DIR}/bin
+  COMPONENT Development
+  PATTERN "*"
+  PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_READ WORLD_EXECUTE)
+
+install(DIRECTORY ${TEMP_TARGET_DIR}/html
+  DESTINATION ${TARGET_DIR}
+  COMPONENT Documentation)
 
 # generate and install export file
 install(EXPORT EPICS
