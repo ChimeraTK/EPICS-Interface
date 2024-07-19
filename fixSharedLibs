@@ -62,15 +62,15 @@ for lib in *.so; do
     touch -r "${TMPFIL}" "${dependee}" # restore timestmap
   done
 
-  # update all binaries linking against this lib (and update their rpath along)
-  for dependee in "${BIN_DIR}"/*; do
+  # update all other binaries linking against this lib (and update their rpath along)
+  for dependee in "${BIN_DIR}"/* "${TARGET_DIR}/lib/perl/"*/*/*.so; do
     # ignore non-elf files (like perl scripts)
-    if ! patchelf --print-rpath "${dependee}" 2> /dev/null; then
+    if ! patchelf --print-rpath "${dependee}" > /dev/null 2>&1; then
       continue
     fi
     # this does nothing if 'dependee' does not actually depend on 'lib'
+    chmod +w "${dependee}"
     touch -r "${dependee}" "${TMPFIL}" # store timestmap
-    echo patchelf --replace-needed "${fullname}" "${fullname}-ChimeraTK" --set-rpath "${LIB_DIR_FINAL}" "${dependee}"
     patchelf --replace-needed "${fullname}" "${fullname}-ChimeraTK" --set-rpath "${LIB_DIR_FINAL}" "${dependee}"
     touch -r "${TMPFIL}" "${dependee}" # restore timestmap
   done
