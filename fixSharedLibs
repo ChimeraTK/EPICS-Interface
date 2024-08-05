@@ -43,10 +43,15 @@ for lib in *.so; do
 
   echo "$lib -> $fullname -> $fullname-ChimeraTK"
 
-  # rename the library, update soname and link
+  # Rename the library, update soname and link.
+  # Note: dpkg-shlibdeps is sensitive to the order of the SONAME and RPATH entries in the shared library files. It
+  # expects the SONAME after the RPATH. patchelf would put the entries in the opposite order if the SONAME and the
+  # RPATH are set in the same command, hence we need to run patchelf twice to define the order as expected by
+  # dpkg-shlibdeps.
   mv "${fullname}" "${fullname}-ChimeraTK"
   touch -r "${fullname}-ChimeraTK" "${TMPFIL}" # store timestmap
-  patchelf --set-soname "${fullname}-ChimeraTK" --set-rpath "${LIB_DIR_FINAL}" "${fullname}-ChimeraTK"
+  patchelf --set-rpath "${LIB_DIR_FINAL}" "${fullname}-ChimeraTK"
+  patchelf --set-soname "${fullname}-ChimeraTK" "${fullname}-ChimeraTK"
   touch -r "${TMPFIL}" "${fullname}-ChimeraTK" # restore timestamp
   ln -sfn "${fullname}-ChimeraTK" "${lib}"
   ln -sfn "${fullname}-ChimeraTK" "${fullname}"
