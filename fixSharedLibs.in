@@ -50,8 +50,8 @@ for lib in *.so; do
   # dpkg-shlibdeps.
   mv "${fullname}" "${fullname}-ChimeraTK"
   touch -r "${fullname}-ChimeraTK" "${TMPFIL}" # store timestmap
-  patchelf --set-rpath "${LIB_DIR_FINAL}" "${fullname}-ChimeraTK"
-  patchelf --set-soname "${fullname}-ChimeraTK" "${fullname}-ChimeraTK"
+  @PATCHELF@ --set-rpath "${LIB_DIR_FINAL}" "${fullname}-ChimeraTK"
+  @PATCHELF@ --set-soname "${fullname}-ChimeraTK" "${fullname}-ChimeraTK"
   touch -r "${TMPFIL}" "${fullname}-ChimeraTK" # restore timestamp
   ln -sfn "${fullname}-ChimeraTK" "${lib}"
   ln -sfn "${fullname}-ChimeraTK" "${fullname}"
@@ -63,20 +63,20 @@ for lib in *.so; do
     fi
     # this does nothing if 'dependee' does not actually depend on 'lib'
     touch -r "${dependee}" "${TMPFIL}" # store timestmap
-    patchelf --replace-needed "${fullname}" "${fullname}-ChimeraTK" "${dependee}"
+    @PATCHELF@ --replace-needed "${fullname}" "${fullname}-ChimeraTK" "${dependee}"
     touch -r "${TMPFIL}" "${dependee}" # restore timestmap
   done
 
   # update all other binaries linking against this lib (and update their rpath along)
   for dependee in "${BIN_DIR}"/* "${TARGET_DIR}/lib/perl/"*/*/*.so; do
     # ignore non-elf files (like perl scripts)
-    if ! patchelf --print-rpath "${dependee}" > /dev/null 2>&1; then
+    if ! @PATCHELF@ --print-rpath "${dependee}" > /dev/null 2>&1; then
       continue
     fi
     # this does nothing if 'dependee' does not actually depend on 'lib'
     chmod +w "${dependee}"
     touch -r "${dependee}" "${TMPFIL}" # store timestmap
-    patchelf --replace-needed "${fullname}" "${fullname}-ChimeraTK" --set-rpath "${LIB_DIR_FINAL}" "${dependee}"
+    @PATCHELF@ --replace-needed "${fullname}" "${fullname}-ChimeraTK" --set-rpath "${LIB_DIR_FINAL}" "${dependee}"
     touch -r "${TMPFIL}" "${dependee}" # restore timestmap
   done
 
