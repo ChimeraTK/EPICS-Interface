@@ -1,0 +1,20 @@
+diff --git a/src/patchelf.cc b/src/patchelf.cc
+index 82b4b46..3ceeb89 100644
+--- a/src/patchelf.cc
++++ b/src/patchelf.cc
+@@ -772,6 +772,7 @@ void ElfFile<ElfFileParamNames>::writeReplacedSections(Elf_Off & curOff,
+             }
+         }
+ 
++#if 0
+         /* If there is .note.gnu.property section, then the PT_GNU_PROPERTY
+            segment must be sync'ed with it. */
+         if (sectionName == ".note.gnu.property") {
+@@ -783,6 +784,7 @@ void ElfFile<ElfFileParamNames>::writeReplacedSections(Elf_Off & curOff,
+                 }
+             }
+         }
++#endif
+ 
+         curOff += roundUp(i->second.size(), sectionAlignment);
+     }

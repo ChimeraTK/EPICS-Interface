@@ -68,7 +68,7 @@ else
 fi
 
 cd "O.${EPICS_ARCH}"
-pkg-config ./epics-base-${EPICS_ARCH}.pc --cflags-only-I > ${PROJECT_BINARY_DIR}/include-dirs.temp
+@PKG_CONFIG_EXECUTABLE@ ./epics-base-${EPICS_ARCH}.pc --cflags-only-I > ${PROJECT_BINARY_DIR}/include-dirs.temp
 rm -f ${PROJECT_BINARY_DIR}/include-dirs.txt
 touch ${PROJECT_BINARY_DIR}/include-dirs.txt
 for dir in `cat ${PROJECT_BINARY_DIR}/include-dirs.temp`; do

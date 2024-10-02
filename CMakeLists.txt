@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
-
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+    cmake_policy(SET CMP0135 OLD)
+endif()
 project(ChimeraTK-EPICS)
 
 # Change project name, based on EPICS version
@@ -21,9 +23,16 @@ else()
 endif()
 
 set(${PROJECT_NAME}_MAJOR_VERSION 01)
-set(${PROJECT_NAME}_MINOR_VERSION 00)
+set(${PROJECT_NAME}_MINOR_VERSION 01)
 set(${PROJECT_NAME}_PATCH_VERSION 00)
 include(cmake/set_version_numbers.cmake)
+
+find_program(PERL perl REQUIRED)
+include(FindPkgConfig)
+if (NOT PKG_CONFIG_FOUND)
+    message(FATAL_ERROR "EPICS needs pkg-config to work")
+endif()
+configure_file(configEpics.in configEpics @ONLY)
 
 # determine EPICS host architecture string
 execute_process(COMMAND perl ${CMAKE_SOURCE_DIR}/epics${EPICS_VERSION}-base/src/tools/EpicsHostArch.pl
@@ -44,9 +53,37 @@ if(EPICS_VERSION STREQUAL "7")
   find_package(libYajl REQUIRED)
 endif()
 
-find_program(PATCHELF patchelf REQUIRED)
+find_program(PATCHELF patchelf)
 
-find_program(PERL perl REQUIRED)
+if (PATCHELF)
+  execute_process(COMMAND ${PATCHELF} "--version" OUTPUT_VARIABLE PATCHELF_OUTPUT)
+  string(REPLACE " " ";" PATCHELF_VERSION ${PATCHELF_OUTPUT})
+  list(POP_FRONT PATCHELF_VERSION)
+  if (PATCHELF_VERSION VERSION_LESS "0.18.0")
+      set(PATCHELF "PATCHELF-NOTFOUND")
+  else()
+      message("${PATCHELF} is >= 0.18, using system version")
+  endif()
+endif()
+
+if (NOT PATCHELF)
+    include(ExternalProject)
+    ExternalProject_Add(patchelf-external
+        SOURCE_DIR ${PROJECT_BINARY_DIR}/patchelf
+        URL https://github.com/NixOS/patchelf/releases/download/0.18.0/patchelf-0.18.0.tar.gz
+        BUILD_BYPRODUCTS patchelf-external-prefix/bin/patchelf
+        PATCH ${CMAKE_CURRENT_SOURCE_DIR}/drop-unsupported-elf-tag.patch
+        CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/patchelf/configure --prefix=<INSTALL_DIR> CFLAGS=-w CPPFLAGS=-w CXXFLAGS=-w
+        BUILD_COMMAND ${MAKE}
+    )
+    ExternalProject_Get_property(patchelf-external install_dir)
+    set(PATCHELF ${install_dir}/bin/patchelf)
+    add_custom_target(patchelf-build DEPENDS patchelf-external)
+else()
+    add_custom_target(patchelf-build COMMAND echo "Nothing to do for patchelf.")
+endif()
+
+message("Patchelf is ${PATCHELF}")
 
 # set directory to gather all resulting libraries
 set(TARGET_DIR ${CMAKE_INSTALL_PREFIX}/share/ChimeraTK-EPICS${EPICS_VERSION})
@@ -89,7 +126,7 @@ list(TRANSFORM TEMP_EPICS_BASE_LIBS PREPEND "${TEMP_TARGET_LIB_DIR}/")
 # There seems to be no other way to get to the pkg-config .pc file which contains valuable
 # information for us (include directories).
 execute_process(
-  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/configEpics "${CMAKE_CURRENT_SOURCE_DIR}/epics${EPICS_VERSION}-base" "${TARGET_DIR}" "${EPICS_ARCH}"
+  COMMAND ${PROJECT_BINARY_DIR}/configEpics "${CMAKE_CURRENT_SOURCE_DIR}/epics${EPICS_VERSION}-base" "${TARGET_DIR}" "${EPICS_ARCH}"
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR} RESULT_VARIABLE RESULT)
 
 if(NOT ${RESULT} EQUAL 0)
@@ -119,10 +156,11 @@ add_custom_target(${PROJECT_NAME}-calc ALL
   BYPRODUCTS ${TEMP_TARGET_LIB_DIR}/libcalc.so)
 
 # fix shared library names and dependencies
+configure_file(fixSharedLibs.in fixSharedLibs @ONLY)
 add_custom_target(${PROJECT_NAME}-sharedlibs ALL
-  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/fixSharedLibs "${TARGET_DIR}" "${EPICS_ARCH}" "${EPICS_FULLVER}"
+  COMMAND ${PROJECT_BINARY_DIR}/fixSharedLibs "${TARGET_DIR}" "${EPICS_ARCH}" "${EPICS_FULLVER}"
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-  DEPENDS ${PROJECT_NAME}-base ${PROJECT_NAME}-autosave ${PROJECT_NAME}-calc)
+  DEPENDS ${PROJECT_NAME}-base ${PROJECT_NAME}-autosave ${PROJECT_NAME}-calc patchelf-build)
 
 # create interface library
 add_library(EPICS INTERFACE)
