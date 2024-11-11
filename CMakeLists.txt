@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
-if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
-    cmake_policy(SET CMP0135 OLD)
+
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+  cmake_policy(SET CMP0135 OLD)
 endif()
+
 project(ChimeraTK-EPICS)
 
 # Change project name, based on EPICS version
@@ -29,9 +31,11 @@ include(cmake/set_version_numbers.cmake)
 
 find_program(PERL perl REQUIRED)
 include(FindPkgConfig)
-if (NOT PKG_CONFIG_FOUND)
-    message(FATAL_ERROR "EPICS needs pkg-config to work")
+
+if(NOT PKG_CONFIG_FOUND)
+  message(FATAL_ERROR "EPICS needs pkg-config to work")
 endif()
+
 configure_file(configEpics.in configEpics @ONLY)
 
 # determine EPICS host architecture string
@@ -55,32 +59,33 @@ endif()
 
 find_program(PATCHELF patchelf)
 
-if (PATCHELF)
+if(PATCHELF)
   execute_process(COMMAND ${PATCHELF} "--version" OUTPUT_VARIABLE PATCHELF_OUTPUT)
   string(REPLACE " " ";" PATCHELF_VERSION ${PATCHELF_OUTPUT})
   list(POP_FRONT PATCHELF_VERSION)
-  if (PATCHELF_VERSION VERSION_LESS "0.18.0")
-      set(PATCHELF "PATCHELF-NOTFOUND")
+
+  if(PATCHELF_VERSION VERSION_LESS "0.18.0")
+    set(PATCHELF "PATCHELF-NOTFOUND")
   else()
-      message("${PATCHELF} is >= 0.18, using system version")
+    message("${PATCHELF} is >= 0.18, using system version")
   endif()
 endif()
 
-if (NOT PATCHELF)
-    include(ExternalProject)
-    ExternalProject_Add(patchelf-external
-        SOURCE_DIR ${PROJECT_BINARY_DIR}/patchelf
-        URL https://github.com/NixOS/patchelf/releases/download/0.18.0/patchelf-0.18.0.tar.gz
-        BUILD_BYPRODUCTS patchelf-external-prefix/bin/patchelf
-        PATCH ${CMAKE_CURRENT_SOURCE_DIR}/drop-unsupported-elf-tag.patch
-        CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/patchelf/configure --prefix=<INSTALL_DIR> CFLAGS=-w CPPFLAGS=-w CXXFLAGS=-w
-        BUILD_COMMAND ${MAKE}
-    )
-    ExternalProject_Get_property(patchelf-external install_dir)
-    set(PATCHELF ${install_dir}/bin/patchelf)
-    add_custom_target(patchelf-build DEPENDS patchelf-external)
+if(NOT PATCHELF)
+  include(ExternalProject)
+  ExternalProject_Add(patchelf-external
+    SOURCE_DIR ${PROJECT_BINARY_DIR}/patchelf
+    URL https://github.com/NixOS/patchelf/releases/download/0.18.0/patchelf-0.18.0.tar.gz
+    BUILD_BYPRODUCTS patchelf-external-prefix/bin/patchelf
+    PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/drop-unsupported-elf-tag.patch
+    CONFIGURE_COMMAND ${PROJECT_BINARY_DIR}/patchelf/configure --prefix=<INSTALL_DIR> CFLAGS=-w CPPFLAGS=-w CXXFLAGS=-w
+    BUILD_COMMAND ${MAKE}
+  )
+  ExternalProject_Get_property(patchelf-external install_dir)
+  set(PATCHELF ${install_dir}/bin/patchelf)
+  add_custom_target(patchelf-build DEPENDS patchelf-external)
 else()
-    add_custom_target(patchelf-build COMMAND echo "Nothing to do for patchelf.")
+  add_custom_target(patchelf-build COMMAND echo "Nothing to do for patchelf.")
 endif()
 
 message("Patchelf is ${PATCHELF}")
